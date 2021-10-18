@@ -76,7 +76,7 @@ class ClientMainWindow(QMainWindow):
     # Заполняем историю сообщений.
     def history_list_update(self):
         # Получаем историю сортированную по дате
-        list = sorted(self.database.get_history(self.current_chat), key=lambda item: item[3])
+        message_list = sorted(self.database.get_history(self.current_chat), key=lambda item: item[3])
         # Если модель не создана, создадим.
         if not self.history_model:
             self.history_model = QStandardItemModel()
@@ -87,12 +87,13 @@ class ClientMainWindow(QMainWindow):
 
         # Заполнение модели записями, так-же стоит разделить входящие и исходящие выравниванием и разным фоном.
         # Записи в обратном порядке, поэтому выбираем их с конца и не более 20
-        start_index = -20 if len(list) > 20 else -len(list)
-        if list:
-            date_prev = list[start_index][3].date()
+        list_len = len(message_list)
+        start_index = -20 if list_len > 20 else -list_len
+        if message_list:
+            date_prev = message_list[start_index][3].date()
             self.history_model.appendRow(self.get_date_qstandarditem(date_prev))
 
-            for item in list[start_index:]:
+            for item in message_list[start_index:]:
                 date_curr = item[3].date()
                 if date_curr != date_prev:
                     date_prev = date_curr
@@ -114,7 +115,7 @@ class ClientMainWindow(QMainWindow):
             self.ui.list_messages.scrollToBottom()
 
     @staticmethod
-    def get_date_qstandarditem(date: datetime):
+    def get_date_qstandarditem(date: datetime) -> QStandardItem:
         date_item = QStandardItem(str(date))
         date_item.setTextAlignment(Qt.AlignCenter)
         date_item.setBackground(QBrush(QColor(200, 200, 200)))
