@@ -1,3 +1,5 @@
+import datetime
+
 from PyQt5.QtWidgets import QMainWindow, qApp, QMessageBox, QApplication, QListView
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor
 from PyQt5.QtCore import pyqtSlot, QEvent, Qt
@@ -79,30 +81,44 @@ class ClientMainWindow(QMainWindow):
         if not self.history_model:
             self.history_model = QStandardItemModel()
             self.ui.list_messages.setModel(self.history_model)
+
         # Очистим от старых записей
         self.history_model.clear()
-        # Берём не более 20 последних записей.
-        length = len(list)
-        start_index = 0
-        if length > 20:
-            start_index = length - 20
+
         # Заполнение модели записями, так-же стоит разделить входящие и исходящие выравниванием и разным фоном.
         # Записи в обратном порядке, поэтому выбираем их с конца и не более 20
-        for i in range(start_index, length):
-            item = list[i]
-            if item[1] == 'in':
-                mess = QStandardItem(f'Входящее от {item[3].replace(microsecond=0)}:\n {item[2]}')
+        start_index = -20 if len(list) > 20 else -len(list)
+        if list:
+            date_prev = list[start_index][3].date()
+            self.history_model.appendRow(self.get_date_qstandarditem(date_prev))
+
+            for item in list[start_index:]:
+                date_curr = item[3].date()
+                if date_curr != date_prev:
+                    date_prev = date_curr
+                    self.history_model.appendRow(self.get_date_qstandarditem(date_prev))
+
+                hours_minutes = item[3].strftime('%H:%M')
+
+                mess = QStandardItem()
                 mess.setEditable(False)
-                mess.setBackground(QBrush(QColor(255, 213, 213)))
-                mess.setTextAlignment(Qt.AlignLeft)
+                text = f'{item[2]}   {hours_minutes}'
+                mess.setText(text)
+                if item[1] == 'in':
+                    mess.setBackground(QBrush(QColor(255, 213, 213)))
+                    mess.setTextAlignment(Qt.AlignLeft)
+                else:
+                    mess.setTextAlignment(Qt.AlignRight)
+                    mess.setBackground(QBrush(QColor(204, 255, 204)))
                 self.history_model.appendRow(mess)
-            else:
-                mess = QStandardItem(f'Исходящее от {item[3].replace(microsecond=0)}:\n {item[2]}')
-                mess.setEditable(False)
-                mess.setTextAlignment(Qt.AlignRight)
-                mess.setBackground(QBrush(QColor(204, 255, 204)))
-                self.history_model.appendRow(mess)
-        self.ui.list_messages.scrollToBottom()
+            self.ui.list_messages.scrollToBottom()
+
+    @staticmethod
+    def get_date_qstandarditem(date: datetime):
+        date_item = QStandardItem(str(date))
+        date_item.setTextAlignment(Qt.AlignCenter)
+        date_item.setBackground(QBrush(QColor(200, 200, 200)))
+        return date_item
 
     # Функция обработчик даблклика по контакту
     def select_active_user(self):
@@ -197,7 +213,7 @@ class ClientMainWindow(QMainWindow):
     # Функция отправки собщения пользователю.
     def send_message(self):
         # Текст в поле, проверяем что поле не пустое затем забирается сообщение и поле очищается
-        message_text = self.ui.text_message.toPlainText()
+        message_text = self.ui.text_message.toPlainText().strip()
         self.ui.text_message.clear()
         if not message_text:
             return
