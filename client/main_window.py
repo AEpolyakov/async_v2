@@ -1,5 +1,7 @@
+import datetime
+
 from PyQt5.QtWidgets import QMainWindow, qApp, QMessageBox, QApplication, QListView
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor, QFont
 from PyQt5.QtCore import pyqtSlot, QEvent, Qt
 import sys
 import json
@@ -54,9 +56,63 @@ class ClientMainWindow(QMainWindow):
         # Даблклик по листу контактов отправляется в обработчик
         self.ui.list_contacts.doubleClicked.connect(self.select_active_user)
 
+        # переключатель темы
+        self.ui.theme_switch.clicked.connect(self.change_theme)
+        self.color_set = 0
+
+        self.apply_theme()
+
         self.clients_list_update()
         self.set_disabled_input()
         self.show()
+
+    def set_theme(self, config):
+        self.color_set = int(config['SETTINGS']['theme'][0])
+        self.apply_theme()
+        if self.color_set:
+            self.ui.theme_switch.setChecked(True)
+
+    def apply_theme(self):
+        BG_COLOR = ('#c0c0c0', '#10121c')
+        LIST_BG_COLOR = ('#c0c0c0', '#1b222b')
+        FONT_COLOR = ('#202020', '#c0c0c0')
+        MESSAGE_BG_COLOR = ({'green': (180, 255, 180), 'red': (255, 180, 180), 'grey': (230, 230, 230)},
+                            {'green': (50, 90, 133), 'red': (33, 34, 46), 'grey': (50, 50, 50)})
+
+        # background
+        self.ui.centralwidget.setStyleSheet(f'background-color: {BG_COLOR[self.color_set]};')
+
+        # buttons
+        for button in [self.ui.btn_add_contact, self.ui.btn_remove_contact, self.ui.btn_send, self.ui.btn_clear]:
+            button.setStyleSheet('QPushButton {color: ' + FONT_COLOR[self.color_set] + '}')
+
+        # labels
+        for label in [self.ui.label_new_message, self.ui.label_history, self.ui.label_contacts]:
+            label.setStyleSheet('QLabel {color: ' + FONT_COLOR[self.color_set] + '}')
+
+        # checkbox
+        self.ui.theme_switch.setStyleSheet('QCheckBox {color: ' + FONT_COLOR[self.color_set] + '}')
+
+        # message color change
+        self.message_bg_colors = MESSAGE_BG_COLOR[self.color_set]
+
+        style = '{color: ' + FONT_COLOR[self.color_set] + ';' + ' background-color: ' + LIST_BG_COLOR[
+            self.color_set] + '}'
+        # list view
+        for q_list in [self.ui.list_messages, self.ui.list_contacts]:
+            q_list.setStyleSheet('QListView' + style)
+
+        # text edit field
+        self.ui.text_message.setStyleSheet('QTextEdit' + style)
+
+        # menubar
+        self.ui.menubar.setStyleSheet('QMenuBar' + style)
+
+        self.history_list_update()
+
+    def change_theme(self):
+        self.color_set = self.ui.theme_switch.isChecked()
+        self.apply_theme()
 
     # Деактивировать поля ввода
     def set_disabled_input(self):
@@ -74,35 +130,49 @@ class ClientMainWindow(QMainWindow):
     # Заполняем историю сообщений.
     def history_list_update(self):
         # Получаем историю сортированную по дате
-        list = sorted(self.database.get_history(self.current_chat), key=lambda item: item[3])
+        message_list = sorted(self.database.get_history(self.current_chat), key=lambda item: item[3])
         # Если модель не создана, создадим.
         if not self.history_model:
             self.history_model = QStandardItemModel()
             self.ui.list_messages.setModel(self.history_model)
+
         # Очистим от старых записей
         self.history_model.clear()
-        # Берём не более 20 последних записей.
-        length = len(list)
-        start_index = 0
-        if length > 20:
-            start_index = length - 20
+
         # Заполнение модели записями, так-же стоит разделить входящие и исходящие выравниванием и разным фоном.
         # Записи в обратном порядке, поэтому выбираем их с конца и не более 20
-        for i in range(start_index, length):
-            item = list[i]
-            if item[1] == 'in':
-                mess = QStandardItem(f'Входящее от {item[3].replace(microsecond=0)}:\n {item[2]}')
+        start_index = max(-20, -len(message_list))
+
+        if message_list:
+            date_prev = message_list[start_index][3].date()
+            self.history_model.appendRow(self.get_date_qstandarditem(date_prev.strftime('%d-%m-%y')))
+
+            for item in message_list[start_index:]:
+                date_curr = item[3].date()
+                if date_curr != date_prev:
+                    date_prev = date_curr
+                    self.history_model.appendRow(self.get_date_qstandarditem(date_prev.strftime('%d-%m-%y')))
+
+                hours_minutes = item[3].strftime('%H:%M')
+
+                mess = QStandardItem()
                 mess.setEditable(False)
-                mess.setBackground(QBrush(QColor(255, 213, 213)))
-                mess.setTextAlignment(Qt.AlignLeft)
+                text = f'{item[2]}   {hours_minutes}'
+                mess.setText(text)
+                if item[1] == 'in':
+                    mess.setBackground(QBrush(QColor(*self.message_bg_colors['red'])))
+                    mess.setTextAlignment(Qt.AlignLeft)
+                else:
+                    mess.setTextAlignment(Qt.AlignRight)
+                    mess.setBackground(QBrush(QColor(*self.message_bg_colors['green'])))
                 self.history_model.appendRow(mess)
-            else:
-                mess = QStandardItem(f'Исходящее от {item[3].replace(microsecond=0)}:\n {item[2]}')
-                mess.setEditable(False)
-                mess.setTextAlignment(Qt.AlignRight)
-                mess.setBackground(QBrush(QColor(204, 255, 204)))
-                self.history_model.appendRow(mess)
-        self.ui.list_messages.scrollToBottom()
+            self.ui.list_messages.scrollToBottom()
+
+    def get_date_qstandarditem(self, date: datetime) -> QStandardItem:
+        date_item = QStandardItem(str(date))
+        date_item.setTextAlignment(Qt.AlignCenter)
+        date_item.setBackground(QBrush(QColor(*self.message_bg_colors['grey'])))
+        return date_item
 
     # Функция обработчик даблклика по контакту
     def select_active_user(self):
@@ -197,7 +267,7 @@ class ClientMainWindow(QMainWindow):
     # Функция отправки собщения пользователю.
     def send_message(self):
         # Текст в поле, проверяем что поле не пустое затем забирается сообщение и поле очищается
-        message_text = self.ui.text_message.toPlainText()
+        message_text = self.ui.text_message.toPlainText().strip()
         self.ui.text_message.clear()
         if not message_text:
             return

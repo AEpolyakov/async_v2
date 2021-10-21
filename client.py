@@ -2,6 +2,8 @@ import logging
 import logs.config_client_log
 import argparse
 import sys
+import os
+import configparser
 from PyQt5.QtWidgets import QApplication
 
 from common.variables import *
@@ -36,6 +38,21 @@ def arg_parser():
 
     return server_address, server_port, client_name
 
+
+def config_load(name: str):
+    config = configparser.ConfigParser()
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    config_path = f"{f'client_{name}.ini'}"
+    config.read(config_path)
+    # Если конфиг файл загружен правильно, запускаемся, иначе конфиг по умолчанию.
+    if 'SETTINGS' in config:
+        return config
+    else:
+        config.add_section('SETTINGS')
+        config.set('SETTINGS', 'theme', '1')
+        with open(config_path, 'w') as config_file:
+            config.write(config_file, config)
+        return config
 
 # Основная функция клиента
 if __name__ == '__main__':
@@ -72,10 +89,14 @@ if __name__ == '__main__':
     transport.setDaemon(True)
     transport.start()
 
+    # читаем конфиги
+    config = config_load(client_name)
+
     # Создаём GUI
     main_window = ClientMainWindow(database, transport)
     main_window.make_connection(transport)
     main_window.setWindowTitle(f'Чат Программа alpha release - {client_name}')
+    main_window.set_theme(config)
     client_app.exec_()
 
     # Раз графическая оболочка закрылась, закрываем транспорт

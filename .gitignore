@@ -3,3 +3,4 @@
 *__init__*
 *__pycache__*
 *.db3
+client*.ini
