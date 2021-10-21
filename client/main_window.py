@@ -1,7 +1,7 @@
 import datetime
 
 from PyQt5.QtWidgets import QMainWindow, qApp, QMessageBox, QApplication, QListView
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor, QFont
 from PyQt5.QtCore import pyqtSlot, QEvent, Qt
 import sys
 import json
@@ -56,9 +56,63 @@ class ClientMainWindow(QMainWindow):
         # Даблклик по листу контактов отправляется в обработчик
         self.ui.list_contacts.doubleClicked.connect(self.select_active_user)
 
+        # переключатель темы
+        self.ui.theme_switch.clicked.connect(self.change_theme)
+        self.color_set = 0
+
+        self.apply_theme()
+
         self.clients_list_update()
         self.set_disabled_input()
         self.show()
+
+    def set_theme(self, config):
+        self.color_set = int(config['SETTINGS']['theme'][0])
+        self.apply_theme()
+        if self.color_set:
+            self.ui.theme_switch.setChecked(True)
+
+    def apply_theme(self):
+        BG_COLOR = ('#c0c0c0', '#10121c')
+        LIST_BG_COLOR = ('#c0c0c0', '#1b222b')
+        FONT_COLOR = ('#202020', '#c0c0c0')
+        MESSAGE_BG_COLOR = (((213, 255, 213), (255, 213, 213), (200, 200, 200)),
+                            ((50, 90, 133), (33, 34, 46), (50, 50, 50)))
+
+        # background
+        self.ui.centralwidget.setStyleSheet(f'background-color: {BG_COLOR[self.color_set]};')
+
+        # buttons
+        for button in [self.ui.btn_add_contact, self.ui.btn_remove_contact, self.ui.btn_send, self.ui.btn_clear]:
+            button.setStyleSheet('QPushButton {color: ' + FONT_COLOR[self.color_set] + '}')
+
+        # labels
+        for label in [self.ui.label_new_message, self.ui.label_history, self.ui.label_contacts]:
+            label.setStyleSheet('QLabel {color: ' + FONT_COLOR[self.color_set] + '}')
+
+        # checkbox
+        self.ui.theme_switch.setStyleSheet('QCheckBox {color: ' + FONT_COLOR[self.color_set] + '}')
+
+        # message color change
+        self.message_bg_colors = MESSAGE_BG_COLOR[self.color_set]
+
+        style = '{color: ' + FONT_COLOR[self.color_set] + ';' + ' background-color: ' + LIST_BG_COLOR[
+            self.color_set] + '}'
+        # list view
+        for q_list in [self.ui.list_messages, self.ui.list_contacts]:
+            q_list.setStyleSheet('QListView' + style)
+
+        # text edit field
+        self.ui.text_message.setStyleSheet('QTextEdit' + style)
+
+        # menubar
+        self.ui.menubar.setStyleSheet('QMenuBar' + style)
+
+        self.history_list_update()
+
+    def change_theme(self):
+        self.color_set = self.ui.theme_switch.isChecked()
+        self.apply_theme()
 
     # Деактивировать поля ввода
     def set_disabled_input(self):
@@ -106,19 +160,18 @@ class ClientMainWindow(QMainWindow):
                 text = f'{item[2]}   {hours_minutes}'
                 mess.setText(text)
                 if item[1] == 'in':
-                    mess.setBackground(QBrush(QColor(255, 213, 213)))
+                    mess.setBackground(QBrush(QColor(*self.message_bg_colors[1])))
                     mess.setTextAlignment(Qt.AlignLeft)
                 else:
                     mess.setTextAlignment(Qt.AlignRight)
-                    mess.setBackground(QBrush(QColor(204, 255, 204)))
+                    mess.setBackground(QBrush(QColor(*self.message_bg_colors[0])))
                 self.history_model.appendRow(mess)
             self.ui.list_messages.scrollToBottom()
 
-    @staticmethod
-    def get_date_qstandarditem(date: datetime) -> QStandardItem:
+    def get_date_qstandarditem(self, date: datetime) -> QStandardItem:
         date_item = QStandardItem(str(date))
         date_item.setTextAlignment(Qt.AlignCenter)
-        date_item.setBackground(QBrush(QColor(200, 200, 200)))
+        date_item.setBackground(QBrush(QColor(*self.message_bg_colors[2])))
         return date_item
 
     # Функция обработчик даблклика по контакту
