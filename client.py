@@ -39,16 +39,19 @@ def arg_parser():
     return server_address, server_port, client_name
 
 
-def config_load(client_name):
+def config_load(name: str):
     config = configparser.ConfigParser()
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    config.read(f"{f'client{client_name}.ini'}")
+    config_path = f"{f'client_{name}.ini'}"
+    config.read(config_path)
     # Если конфиг файл загружен правильно, запускаемся, иначе конфиг по умолчанию.
     if 'SETTINGS' in config:
         return config
     else:
         config.add_section('SETTINGS')
         config.set('SETTINGS', 'theme', '1')
+        with open(config_path, 'w') as config_file:
+            config.write(config_file, config)
         return config
 
 # Основная функция клиента
