@@ -141,17 +141,17 @@ class ClientMainWindow(QMainWindow):
 
         # Заполнение модели записями, так-же стоит разделить входящие и исходящие выравниванием и разным фоном.
         # Записи в обратном порядке, поэтому выбираем их с конца и не более 20
-        list_len = len(message_list)
-        start_index = -20 if list_len > 20 else -list_len
+        start_index = max(-20, -len(message_list))
+
         if message_list:
             date_prev = message_list[start_index][3].date()
-            self.history_model.appendRow(self.get_date_qstandarditem(date_prev))
+            self.history_model.appendRow(self.get_date_qstandarditem(date_prev.strftime('%d-%m-%y')))
 
             for item in message_list[start_index:]:
                 date_curr = item[3].date()
                 if date_curr != date_prev:
                     date_prev = date_curr
-                    self.history_model.appendRow(self.get_date_qstandarditem(date_prev))
+                    self.history_model.appendRow(self.get_date_qstandarditem(date_prev.strftime('%d-%m-%y')))
 
                 hours_minutes = item[3].strftime('%H:%M')
 
