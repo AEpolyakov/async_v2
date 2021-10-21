@@ -76,8 +76,8 @@ class ClientMainWindow(QMainWindow):
         BG_COLOR = ('#c0c0c0', '#10121c')
         LIST_BG_COLOR = ('#c0c0c0', '#1b222b')
         FONT_COLOR = ('#202020', '#c0c0c0')
-        MESSAGE_BG_COLOR = (((213, 255, 213), (255, 213, 213), (200, 200, 200)),
-                            ((50, 90, 133), (33, 34, 46), (50, 50, 50)))
+        MESSAGE_BG_COLOR = ({'green': (180, 255, 180), 'red': (255, 180, 180), 'grey': (230, 230, 230)},
+                            {'green': (50, 90, 133), 'red': (33, 34, 46), 'grey': (50, 50, 50)})
 
         # background
         self.ui.centralwidget.setStyleSheet(f'background-color: {BG_COLOR[self.color_set]};')
@@ -160,18 +160,18 @@ class ClientMainWindow(QMainWindow):
                 text = f'{item[2]}   {hours_minutes}'
                 mess.setText(text)
                 if item[1] == 'in':
-                    mess.setBackground(QBrush(QColor(*self.message_bg_colors[1])))
+                    mess.setBackground(QBrush(QColor(*self.message_bg_colors['red'])))
                     mess.setTextAlignment(Qt.AlignLeft)
                 else:
                     mess.setTextAlignment(Qt.AlignRight)
-                    mess.setBackground(QBrush(QColor(*self.message_bg_colors[0])))
+                    mess.setBackground(QBrush(QColor(*self.message_bg_colors['green'])))
                 self.history_model.appendRow(mess)
             self.ui.list_messages.scrollToBottom()
 
     def get_date_qstandarditem(self, date: datetime) -> QStandardItem:
         date_item = QStandardItem(str(date))
         date_item.setTextAlignment(Qt.AlignCenter)
-        date_item.setBackground(QBrush(QColor(*self.message_bg_colors[2])))
+        date_item.setBackground(QBrush(QColor(*self.message_bg_colors['grey'])))
         return date_item
 
     # Функция обработчик даблклика по контакту
