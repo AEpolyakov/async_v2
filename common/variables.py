@@ -41,9 +41,12 @@ USERS_REQUEST = 'get_users'
 RESPONSE_200 = {RESPONSE: 200}
 # 202
 RESPONSE_202 = {RESPONSE: 202,
-                LIST_INFO:None
+                LIST_INFO: None
                 }
-# 400
+
+RESPONSE_205 = {RESPONSE: 205
+                }
+
 RESPONSE_400 = {
             RESPONSE: 400,
             ERROR: None

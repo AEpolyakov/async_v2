@@ -22,17 +22,17 @@ class ClientTransport(threading.Thread, QObject):
     new_message = pyqtSignal(str)
     connection_lost = pyqtSignal()
 
-    def __init__(self, port, ip_address, database, username):
+    def __init__(self, port, ip_address, database, username, password, key):
         # Вызываем конструктор предка
         threading.Thread.__init__(self)
         QObject.__init__(self)
 
-        # Класс База данных - работа с базой
         self.database = database
-        # Имя пользователя
         self.username = username
-        # Сокет для работы с сервером
+        self.password = password
+        self.public_key = key
         self.transport = None
+
         # Устанавливаем соединение:
         self.connection_init(port, ip_address)
         # Обновляем таблицы известных пользователей и контактов

@@ -65,10 +65,13 @@ class MainWindow(QMainWindow):
         self.refresh_button = QAction('Обновить список', self)
 
         # Кнопка настроек сервера
-        self.config_btn = QAction('Настройки сервера' , self)
+        self.config_btn = QAction('Настройки сервера', self)
 
         # Кнопка вывести историю сообщений
         self.show_history_button = QAction('История клиентов', self)
+
+        # Кнопка регситрации новых пользователей вручную
+        self.reg_user_button = QAction('Регистрация', self)
 
         # Статусбар
         self.statusBar()
@@ -79,6 +82,7 @@ class MainWindow(QMainWindow):
         self.toolbar.addAction(self.refresh_button)
         self.toolbar.addAction(self.show_history_button)
         self.toolbar.addAction(self.config_btn)
+        self.toolbar.addAction(self.reg_user_button)
 
         # Настройки геометрии основного окна
         # Поскольку работать с динамическими размерами мы не умеем, и мало времени на изучение, размер окна фиксирован.

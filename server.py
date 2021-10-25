@@ -18,6 +18,7 @@ from server_database import ServerStorage
 from PyQt5.QtWidgets import QApplication, QMessageBox
 from PyQt5.QtCore import QTimer
 from server_gui import MainWindow, gui_create_model, HistoryWindow, create_stat_model, ConfigWindow
+from server_src.auth import RegisterUser
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 
 # Инициализация логирования сервера.
@@ -226,6 +227,28 @@ class Server(threading.Thread, metaclass=ServerMaker):
             send_message(client, response)
             return
 
+    def service_update_lists(self):
+        """Метод реализующий отправки сервисного сообщения 205 клиентам."""
+        for client in self.names:
+            try:
+                send_message(self.names[client], RESPONSE_205)
+            except OSError:
+                self.remove_client(self.names[client])
+
+    def remove_client(self, client):
+        """
+        Метод обработчик клиента с которым прервана связь.
+        Ищет клиента и удаляет его из списков и базы:
+        """
+        logger.info(f'Клиент {client.getpeername()} отключился от сервера.')
+        for name in self.names:
+            if self.names[name] == client:
+                self.database.user_logout(name)
+                del self.names[name]
+                break
+        self.clients.remove(client)
+        client.close()
+
 
 # Загрузка файла конфигурации
 def config_load():
@@ -320,6 +343,11 @@ def main():
             else:
                 message.warning(config_window, 'Ошибка', 'Порт должен быть от 1024 до 65536')
 
+    def reg_user():
+        global reg_user_window
+        reg_user_window = RegisterUser(database, server)
+        reg_user_window.show()
+
     # Таймер, обновляющий список клиентов 1 раз в секунду
     timer = QTimer()
     timer.timeout.connect(list_update)
@@ -329,6 +357,7 @@ def main():
     main_window.refresh_button.triggered.connect(list_update)
     main_window.show_history_button.triggered.connect(show_statistics)
     main_window.config_btn.triggered.connect(server_config)
+    main_window.reg_user_button.triggered.connect(reg_user)
 
     # Запускаем GUI
     server_app.exec_()

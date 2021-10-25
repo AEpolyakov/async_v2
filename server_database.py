@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, DateTime
+from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, DateTime, Text
 from sqlalchemy.orm import mapper, sessionmaker
 from common.variables import *
 import datetime
@@ -8,9 +8,11 @@ import datetime
 class ServerStorage:
     # Класс - отображение таблицы всех пользователей
     class AllUsers:
-        def __init__(self, username):
+        def __init__(self, username, password_hash):
             self.name = username
             self.last_login = datetime.datetime.now()
+            self.password_hash = password_hash
+            self.public_key = None
             self.id = None
 
     # Класс - отображение таблицы активных пользователей:
@@ -46,7 +48,7 @@ class ServerStorage:
             self.sent = 0
             self.accepted = 0
 
-    def __init__(self , path):
+    def __init__(self, path):
         # Создаём движок базы данных
         self.database_engine = create_engine(f'sqlite:///{path}', echo=False, pool_recycle=7200,
                                              connect_args={'check_same_thread': False})
@@ -58,6 +60,8 @@ class ServerStorage:
         users_table = Table('Users', self.metadata,
                             Column('id', Integer, primary_key=True),
                             Column('name', String, unique=True),
+                            Column('password_hash', String),
+                            Column('public_key', Text),
                             Column('last_login', DateTime)
                             )
 
@@ -112,8 +116,14 @@ class ServerStorage:
         self.session.query(self.ActiveUsers).delete()
         self.session.commit()
 
-    # Функция выполняющяяся при входе пользователя, записывает в базу факт входа
-    def user_login(self, username, ip_address, port):
+    def user_login(self, username: str, ip_address: str, port: int):
+        """
+        User login function.
+        :param username:
+        :param ip_address:
+        :param port:
+        :return:
+        """
         # Запрос в таблицу пользователей на наличие там пользователя с таким именем
         rez = self.session.query(self.AllUsers).filter_by(name=username)
 
@@ -121,14 +131,8 @@ class ServerStorage:
         if rez.count():
             user = rez.first()
             user.last_login = datetime.datetime.now()
-        # Если нету, то создаздаём нового пользователя
         else:
-            user = self.AllUsers(username)
-            self.session.add(user)
-            # Комит здесь нужен, чтобы присвоился ID
-            self.session.commit()
-            user_in_history = self.UsersHistory(user.id)
-            self.session.add(user_in_history)
+            raise ValueError('регистрация через админа')
 
         # Теперь можно создать запись в таблицу активных пользователей о факте входа.
         new_active_user = self.ActiveUsers(user.id, ip_address, port, datetime.datetime.now())
@@ -140,6 +144,29 @@ class ServerStorage:
 
         # Сохрраняем изменения
         self.session.commit()
+
+    def add_user(self, name, password_hash):
+        """
+        add new user to database
+        name and password required
+        """
+        new_user = self.AllUsers(name, password_hash)
+        self.session.add(new_user)
+        self.session.commit()
+        new_user_history = self.UsersHistory(new_user.id)
+        self.session.add(new_user_history)
+        self.session.commit()
+
+    def check_user(self, name):
+        return self.session.query(self.AllUsers).filter_by(name=name).count()
+
+    def get_hash(self, name):
+        user = self.session.query(self.AllUsers).filter_by(name=name).first()
+        return user.password_hash
+
+    def get_pubkey(self, name):
+        user = self.session.query(self.AllUsers).filter_by(name=name).first()
+        return user.public_key
 
     # Функция фиксирующая отключение пользователя
     def user_logout(self, username):
@@ -260,16 +287,17 @@ class ServerStorage:
 
 # Отладка
 if __name__ == '__main__':
-    test_db = ServerStorage()
-    test_db.user_login('1111', '192.168.1.113', 8080)
-    test_db.user_login('McG2', '192.168.1.113', 8081)
-    print(test_db.users_list())
-    # print(test_db.active_users_list())
-    # test_db.user_logout('McG')
-    # print(test_db.login_history('re'))
-    # test_db.add_contact('test2', 'test1')
-    # test_db.add_contact('test1', 'test3')
-    # test_db.add_contact('test1', 'test6')
-    # test_db.remove_contact('test1', 'test3')
-    test_db.process_message('McG2', '1111')
-    print(test_db.message_history())
+    pass
+    # test_db = ServerStorage()
+    # test_db.user_login('1111', '192.168.1.113', 8080)
+    # test_db.user_login('McG2', '192.168.1.113', 8081)
+    # print(test_db.users_list())
+    # # print(test_db.active_users_list())
+    # # test_db.user_logout('McG')
+    # # print(test_db.login_history('re'))
+    # # test_db.add_contact('test2', 'test1')
+    # # test_db.add_contact('test1', 'test3')
+    # # test_db.add_contact('test1', 'test6')
+    # # test_db.remove_contact('test1', 'test3')
+    # test_db.process_message('McG2', '1111')
+    # print(test_db.message_history())
