@@ -1,3 +1,5 @@
+import binascii
+import hmac
 import socket
 import sys
 import os
@@ -145,6 +147,46 @@ class Server(threading.Thread, metaclass=ServerMaker):
             logger.error(
                 f'Пользователь {message[DESTINATION]} не зарегистрирован на сервере, отправка сообщения невозможна.')
 
+    def response_400(self, client, text):
+        print(f'response 400, {text}')
+        response = RESPONSE_400
+        response[ERROR] = text
+        send_message(client, response)
+        self.clients.remove(client)
+        client.close()
+
+    def authorize_user(self, message, client):
+        global new_connection
+        print('start user auth')
+        if message[USER][ACCOUNT_NAME] in self.names.keys():
+            self.response_400(client, 'Имя пользователя уже занято.')
+        elif not self.database.check_user(message[USER][ACCOUNT_NAME]):
+            self.response_400(client, 'Пользователь не зарегистрарован')
+        else:
+            random_string = binascii.hexlify(os.urandom(64)).decode('ascii')
+            message_auth = RESPONSE_511
+            message_auth[DATA] = random_string
+            hash_object = hmac.new(self.database.get_hash(message[USER][ACCOUNT_NAME]), random_string, 'MD5')
+            server_digest = hash_object.digest()
+            print(f'auth message = {message_auth}')
+            try:
+                send_message(client, message_auth)
+                answer = get_message(client)
+            except OSError as err:
+                print(f'error in data, {err}')
+                client.close()
+                return
+            client_digest = binascii.a2b_base64(answer[DATA])
+            if RESPONSE in answer and answer[RESPONSE] == 511 and hmac.compare_digest(server_digest, client_digest):
+                self.names[message[USER][ACCOUNT_NAME]] = client
+                client_ip, client_port = client.getpeername()
+                self.database.user_login(message[USER][ACCOUNT_NAME], client_ip, client_port, message[USER][PUBLIC_KEY])
+                send_message(client, RESPONSE_200)
+                with conflag_lock:
+                    new_connection = True
+
+
+
     # Обработчик сообщений от клиентов, принимает словарь - сообщение от клиента, проверяет корректность, отправляет
     #     словарь-ответ в случае необходимости.
     def process_client_message(self, message, client):
@@ -154,19 +196,7 @@ class Server(threading.Thread, metaclass=ServerMaker):
         # Если это сообщение о присутствии, принимаем и отвечаем
         if ACTION in message and message[ACTION] == PRESENCE and TIME in message and USER in message:
             # Если такой пользователь ещё не зарегистрирован, регистрируем, иначе отправляем ответ и завершаем соединение.
-            if message[USER][ACCOUNT_NAME] not in self.names.keys():
-                self.names[message[USER][ACCOUNT_NAME]] = client
-                client_ip, client_port = client.getpeername()
-                self.database.user_login(message[USER][ACCOUNT_NAME], client_ip, client_port)
-                send_message(client, RESPONSE_200)
-                with conflag_lock:
-                    new_connection = True
-            else:
-                response = RESPONSE_400
-                response[ERROR] = 'Имя пользователя уже занято.'
-                send_message(client, response)
-                self.clients.remove(client)
-                client.close()
+            self.authorize_user(message, client)
             return
 
         # Если это сообщение, то добавляем его в очередь сообщений. проверяем наличие в сети. и отвечаем.

@@ -35,6 +35,8 @@ LIST_INFO = 'data_list'
 REMOVE_CONTACT = 'remove'
 ADD_CONTACT = 'add'
 USERS_REQUEST = 'get_users'
+DATA = 'data'
+PUBLIC_KEY = 'public key'
 
 # Словари - ответы:
 # 200
@@ -52,3 +54,7 @@ RESPONSE_400 = {
             ERROR: None
         }
 
+RESPONSE_511 = {
+            RESPONSE: 511,
+            DATA: ''
+        }
