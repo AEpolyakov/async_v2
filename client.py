@@ -56,18 +56,18 @@ def config_load(name: str):
         return config
 
 
-def get_RSA(name):
+def get_rsa_keys(name):
     """get RSA key. Create if not exist."""
     dir_path = os.path.dirname(os.path.realpath(__file__))
     key_path = os.path.join(dir_path, f'{name}.key')
     if not os.path.exists(key_path):
-        key = RSA.generate(2048, os.urandom)
+        keys = RSA.generate(2048, os.urandom)
         with open(key_path, 'wb') as key_file:
-            key_file.write(key.export_key())
+            key_file.write(keys.export_key())
     else:
         with open(key_path, 'rb') as key_file:
-            key = RSA.import_key(key_file.read())
-    return key
+            keys = RSA.import_key(key_file.read())
+    return keys
 
 
 # Основная функция клиента
@@ -91,16 +91,16 @@ if __name__ == '__main__':
             exit(0)
 
     # Записываем логи
-    logger.info(
-        f'Запущен клиент с парамертами: адрес сервера: {server_address} , порт: {server_port}, имя пользователя: {client_name}')
+    logger.info(f'Запущен клиент с парамертами: адрес сервера: {server_address}, '
+                f'порт: {server_port}, имя пользователя: {client_name}')
 
-    key = get_RSA(client_name)
+    rsa_keys = get_rsa_keys(client_name)
     # Создаём объект базы данных
     database = ClientDatabase(client_name)
 
     # Создаём объект - транспорт и запускаем транспортный поток
     try:
-        transport = ClientTransport(server_port, server_address, database, client_name, client_password, key)
+        transport = ClientTransport(server_port, server_address, database, client_name, client_password, rsa_keys)
     except ServerError as error:
         print(error.text)
         exit(1)

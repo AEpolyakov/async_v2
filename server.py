@@ -157,35 +157,33 @@ class Server(threading.Thread, metaclass=ServerMaker):
 
     def authorize_user(self, message, client):
         global new_connection
-        print('start user auth')
         if message[USER][ACCOUNT_NAME] in self.names.keys():
             self.response_400(client, 'Имя пользователя уже занято.')
         elif not self.database.check_user(message[USER][ACCOUNT_NAME]):
             self.response_400(client, 'Пользователь не зарегистрарован')
         else:
-            random_string = binascii.hexlify(os.urandom(64)).decode('ascii')
+            random_string = binascii.hexlify(os.urandom(64))
             message_auth = RESPONSE_511
-            message_auth[DATA] = random_string
+            message_auth[DATA] = random_string.decode('ascii')
             hash_object = hmac.new(self.database.get_hash(message[USER][ACCOUNT_NAME]), random_string, 'MD5')
             server_digest = hash_object.digest()
-            print(f'auth message = {message_auth}')
+            logger.debug(f'auth message = {message_auth}')
             try:
                 send_message(client, message_auth)
                 answer = get_message(client)
             except OSError as err:
-                print(f'error in data, {err}')
+                logger.debug(f'authenticate error in data, {err}')
                 client.close()
                 return
             client_digest = binascii.a2b_base64(answer[DATA])
             if RESPONSE in answer and answer[RESPONSE] == 511 and hmac.compare_digest(server_digest, client_digest):
+                logger.debug(f'authenticate {message[USER][ACCOUNT_NAME]} successful')
                 self.names[message[USER][ACCOUNT_NAME]] = client
                 client_ip, client_port = client.getpeername()
                 self.database.user_login(message[USER][ACCOUNT_NAME], client_ip, client_port, message[USER][PUBLIC_KEY])
                 send_message(client, RESPONSE_200)
                 with conflag_lock:
                     new_connection = True
-
-
 
     # Обработчик сообщений от клиентов, принимает словарь - сообщение от клиента, проверяет корректность, отправляет
     #     словарь-ответ в случае необходимости.

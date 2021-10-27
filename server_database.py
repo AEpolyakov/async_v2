@@ -116,14 +116,7 @@ class ServerStorage:
         self.session.query(self.ActiveUsers).delete()
         self.session.commit()
 
-    def user_login(self, username: str, ip_address: str, port: int):
-        """
-        User login function.
-        :param username:
-        :param ip_address:
-        :param port:
-        :return:
-        """
+    def user_login(self, username: str, ip_address: str, port: int, public_key: str):
         # Запрос в таблицу пользователей на наличие там пользователя с таким именем
         rez = self.session.query(self.AllUsers).filter_by(name=username)
 

@@ -80,6 +80,12 @@ class RegisterUser(QDialog):
             self.server.service_update_lists()
             self.close()
 
+    def make_password_hash(self, password):
+        password_bytes = password.encode('utf-8')
+        salt = self.username.lower().encode('utf-8')
+        hash_object = hashlib.pbkdf2_hmac('sha512', password_bytes, salt, 10000)
+        return binascii.hexlify(hash_object)
+
 
 if __name__ == '__main__':
     # app = QApplication([])
