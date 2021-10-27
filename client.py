@@ -5,6 +5,7 @@ import sys
 import os
 import configparser
 from PyQt5.QtWidgets import QApplication
+from Cryptodome.PublicKey import RSA
 
 from common.variables import *
 from common.errors import ServerError
@@ -54,6 +55,21 @@ def config_load(name: str):
             config.write(config_file, config)
         return config
 
+
+def get_rsa_keys(name):
+    """get RSA key. Create if not exist."""
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    key_path = os.path.join(dir_path, f'{name}.key')
+    if not os.path.exists(key_path):
+        keys = RSA.generate(2048, os.urandom)
+        with open(key_path, 'wb') as key_file:
+            key_file.write(keys.export_key())
+    else:
+        with open(key_path, 'rb') as key_file:
+            keys = RSA.import_key(key_file.read())
+    return keys
+
+
 # Основная функция клиента
 if __name__ == '__main__':
     # Загружаем параметы коммандной строки
@@ -69,20 +85,22 @@ if __name__ == '__main__':
         # Если пользователь ввёл имя и нажал ОК, то сохраняем ведённое и удаляем объект, инааче выходим
         if start_dialog.ok_pressed:
             client_name = start_dialog.client_name.text()
+            client_password = start_dialog.client_password.text()
             del start_dialog
         else:
             exit(0)
 
     # Записываем логи
-    logger.info(
-        f'Запущен клиент с парамертами: адрес сервера: {server_address} , порт: {server_port}, имя пользователя: {client_name}')
+    logger.info(f'Запущен клиент с парамертами: адрес сервера: {server_address}, '
+                f'порт: {server_port}, имя пользователя: {client_name}')
 
+    rsa_keys = get_rsa_keys(client_name)
     # Создаём объект базы данных
     database = ClientDatabase(client_name)
 
     # Создаём объект - транспорт и запускаем транспортный поток
     try:
-        transport = ClientTransport(server_port, server_address, database, client_name)
+        transport = ClientTransport(server_port, server_address, database, client_name, client_password, rsa_keys)
     except ServerError as error:
         print(error.text)
         exit(1)

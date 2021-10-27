@@ -1,3 +1,5 @@
+import binascii
+import hmac
 import socket
 import sys
 import os
@@ -18,6 +20,7 @@ from server_database import ServerStorage
 from PyQt5.QtWidgets import QApplication, QMessageBox
 from PyQt5.QtCore import QTimer
 from server_gui import MainWindow, gui_create_model, HistoryWindow, create_stat_model, ConfigWindow
+from server_src.auth import RegisterUser
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 
 # Инициализация логирования сервера.
@@ -144,6 +147,44 @@ class Server(threading.Thread, metaclass=ServerMaker):
             logger.error(
                 f'Пользователь {message[DESTINATION]} не зарегистрирован на сервере, отправка сообщения невозможна.')
 
+    def response_400(self, client, text):
+        print(f'response 400, {text}')
+        response = RESPONSE_400
+        response[ERROR] = text
+        send_message(client, response)
+        self.clients.remove(client)
+        client.close()
+
+    def authorize_user(self, message, client):
+        global new_connection
+        if message[USER][ACCOUNT_NAME] in self.names.keys():
+            self.response_400(client, 'Имя пользователя уже занято.')
+        elif not self.database.check_user(message[USER][ACCOUNT_NAME]):
+            self.response_400(client, 'Пользователь не зарегистрарован')
+        else:
+            random_string = binascii.hexlify(os.urandom(64))
+            message_auth = RESPONSE_511
+            message_auth[DATA] = random_string.decode('ascii')
+            hash_object = hmac.new(self.database.get_hash(message[USER][ACCOUNT_NAME]), random_string, 'MD5')
+            server_digest = hash_object.digest()
+            logger.debug(f'auth message = {message_auth}')
+            try:
+                send_message(client, message_auth)
+                answer = get_message(client)
+            except OSError as err:
+                logger.debug(f'authenticate error in data, {err}')
+                client.close()
+                return
+            client_digest = binascii.a2b_base64(answer[DATA])
+            if RESPONSE in answer and answer[RESPONSE] == 511 and hmac.compare_digest(server_digest, client_digest):
+                logger.debug(f'authenticate {message[USER][ACCOUNT_NAME]} successful')
+                self.names[message[USER][ACCOUNT_NAME]] = client
+                client_ip, client_port = client.getpeername()
+                self.database.user_login(message[USER][ACCOUNT_NAME], client_ip, client_port, message[USER][PUBLIC_KEY])
+                send_message(client, RESPONSE_200)
+                with conflag_lock:
+                    new_connection = True
+
     # Обработчик сообщений от клиентов, принимает словарь - сообщение от клиента, проверяет корректность, отправляет
     #     словарь-ответ в случае необходимости.
     def process_client_message(self, message, client):
@@ -153,19 +194,7 @@ class Server(threading.Thread, metaclass=ServerMaker):
         # Если это сообщение о присутствии, принимаем и отвечаем
         if ACTION in message and message[ACTION] == PRESENCE and TIME in message and USER in message:
             # Если такой пользователь ещё не зарегистрирован, регистрируем, иначе отправляем ответ и завершаем соединение.
-            if message[USER][ACCOUNT_NAME] not in self.names.keys():
-                self.names[message[USER][ACCOUNT_NAME]] = client
-                client_ip, client_port = client.getpeername()
-                self.database.user_login(message[USER][ACCOUNT_NAME], client_ip, client_port)
-                send_message(client, RESPONSE_200)
-                with conflag_lock:
-                    new_connection = True
-            else:
-                response = RESPONSE_400
-                response[ERROR] = 'Имя пользователя уже занято.'
-                send_message(client, response)
-                self.clients.remove(client)
-                client.close()
+            self.authorize_user(message, client)
             return
 
         # Если это сообщение, то добавляем его в очередь сообщений. проверяем наличие в сети. и отвечаем.
@@ -225,6 +254,28 @@ class Server(threading.Thread, metaclass=ServerMaker):
             response[ERROR] = 'Запрос некорректен.'
             send_message(client, response)
             return
+
+    def service_update_lists(self):
+        """Метод реализующий отправки сервисного сообщения 205 клиентам."""
+        for client in self.names:
+            try:
+                send_message(self.names[client], RESPONSE_205)
+            except OSError:
+                self.remove_client(self.names[client])
+
+    def remove_client(self, client):
+        """
+        Метод обработчик клиента с которым прервана связь.
+        Ищет клиента и удаляет его из списков и базы:
+        """
+        logger.info(f'Клиент {client.getpeername()} отключился от сервера.')
+        for name in self.names:
+            if self.names[name] == client:
+                self.database.user_logout(name)
+                del self.names[name]
+                break
+        self.clients.remove(client)
+        client.close()
 
 
 # Загрузка файла конфигурации
@@ -320,6 +371,11 @@ def main():
             else:
                 message.warning(config_window, 'Ошибка', 'Порт должен быть от 1024 до 65536')
 
+    def reg_user():
+        global reg_user_window
+        reg_user_window = RegisterUser(database, server)
+        reg_user_window.show()
+
     # Таймер, обновляющий список клиентов 1 раз в секунду
     timer = QTimer()
     timer.timeout.connect(list_update)
@@ -329,6 +385,7 @@ def main():
     main_window.refresh_button.triggered.connect(list_update)
     main_window.show_history_button.triggered.connect(show_statistics)
     main_window.config_btn.triggered.connect(server_config)
+    main_window.reg_user_button.triggered.connect(reg_user)
 
     # Запускаем GUI
     server_app.exec_()

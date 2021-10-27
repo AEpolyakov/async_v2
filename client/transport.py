@@ -1,3 +1,6 @@
+import binascii
+import hashlib
+import hmac
 import socket
 import sys
 import time
@@ -22,17 +25,18 @@ class ClientTransport(threading.Thread, QObject):
     new_message = pyqtSignal(str)
     connection_lost = pyqtSignal()
 
-    def __init__(self, port, ip_address, database, username):
+    def __init__(self, port, ip_address, database, username, password, keys):
         # Вызываем конструктор предка
         threading.Thread.__init__(self)
         QObject.__init__(self)
 
-        # Класс База данных - работа с базой
         self.database = database
-        # Имя пользователя
         self.username = username
-        # Сокет для работы с сервером
+        self._password = password
+        self.password_hash = self.make_password_hash(password)
+        self.public_key = keys.publickey().export_key().decode('ascii')
         self.transport = None
+
         # Устанавливаем соединение:
         self.connection_init(port, ip_address)
         # Обновляем таблицы известных пользователей и контактов
@@ -49,6 +53,12 @@ class ClientTransport(threading.Thread, QObject):
             raise ServerError('Потеряно соединение с сервером!')
             # Флаг продолжения работы транспорта.
         self.running = True
+
+    def make_password_hash(self, password):
+        password_bytes = password.encode('utf-8')
+        salt = self.username.lower().encode('utf-8')
+        hash_object = hashlib.pbkdf2_hmac('sha512', password_bytes, salt, 10000)
+        return binascii.hexlify(hash_object)
 
     # Функция инициализации соединения с сервером
     def connection_init(self, port, ip):
@@ -79,13 +89,14 @@ class ClientTransport(threading.Thread, QObject):
         logger.debug('Установлено соединение с сервером')
 
         # Посылаем серверу приветственное сообщение и получаем ответ что всё нормально или ловим исключение.
-        try:
-            with socket_lock:
+        # try:
+        with socket_lock:
+            try:
                 send_message(self.transport, self.create_presence())
                 self.process_server_ans(get_message(self.transport))
-        except (OSError, json.JSONDecodeError):
-            logger.critical('Потеряно соединение с сервером!')
-            raise ServerError('Потеряно соединение с сервером!')
+            except (OSError, json.JSONDecodeError):
+                logger.critical('Потеряно соединение с сервером!')
+                raise ServerError('Потеряно соединение с сервером!')
 
         # Раз всё хорошо, сообщение о установке соединения.
         logger.info('Соединение с сервером успешно установлено.')
@@ -96,7 +107,8 @@ class ClientTransport(threading.Thread, QObject):
             ACTION: PRESENCE,
             TIME: time.time(),
             USER: {
-                ACCOUNT_NAME: self.username
+                ACCOUNT_NAME: self.username,
+                PUBLIC_KEY: self.public_key,
             }
         }
         logger.debug(f'Сформировано {PRESENCE} сообщение для пользователя {self.username}')
@@ -112,6 +124,15 @@ class ClientTransport(threading.Thread, QObject):
                 return
             elif message[RESPONSE] == 400:
                 raise ServerError(f'{message[ERROR]}')
+            elif message[RESPONSE] == 511:
+                print(f'511 {self.password_hash} {message[DATA].encode()}')
+                hash_object = hmac.new(self.password_hash, message[DATA].encode('utf-8'), 'MD5')
+                digest = hash_object.digest()
+                print(f'{digest=}')
+                answer = RESPONSE_511
+                answer[DATA] = binascii.b2a_base64(digest).decode('ascii')
+                send_message(self.transport, answer)
+                self.process_server_ans(get_message(self.transport))
             else:
                 logger.debug(f'Принят неизвестный код подтверждения {message[RESPONSE]}')
 
