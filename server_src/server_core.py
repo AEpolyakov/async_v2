@@ -1,4 +1,4 @@
-"""module docstring"""
+"""server source file for async chat geekbrains homework"""
 
 import binascii
 import hmac
@@ -12,7 +12,7 @@ from common.metaclasses import ServerMaker
 
 
 class Server(threading.Thread, metaclass=ServerMaker):
-    """Инициализация_Сокета"""
+    """Класс_сервера"""
 
     port = Port()
 
@@ -45,6 +45,7 @@ class Server(threading.Thread, metaclass=ServerMaker):
         super().__init__()
 
     def init_socket(self):
+        """Инициализация Сокета"""
         self.logger.info(f'Запущен сервер, порт для подключений: {self.port}, '
                          f'адрес с которого принимаются подключения: {self.addr}. '
                          f'Если адрес не указан, принимаются соединения с любых адресов.')
@@ -58,7 +59,7 @@ class Server(threading.Thread, metaclass=ServerMaker):
         self.sock.listen()
 
     def run(self):
-        """Инициализация Сокета"""
+        """запуск сервера"""
         self.init_socket()
 
         # Основной цикл программы сервера

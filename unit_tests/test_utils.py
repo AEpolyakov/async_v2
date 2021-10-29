@@ -1,7 +1,7 @@
 import sys
 sys.path.append('../')
 from common.utils import *
-from common.variables import *
+from common.constants import *
 import unittest
 from errors import NonDictInputError
 

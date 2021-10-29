@@ -6,13 +6,13 @@ from datetime import datetime
 from PyQt5.QtWidgets import QMainWindow, qApp, QMessageBox
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor
 from PyQt5.QtCore import pyqtSlot, Qt
-from client.main_window_conv import Ui_MainClientWindow
-from client.add_contact import AddContactDialog
-from client.del_contact import DelContactDialog
+from client_src.main_window_conv import Ui_MainClientWindow
+from client_src.add_contact import AddContactDialog
+from client_src.del_contact import DelContactDialog
 from common.errors import ServerError
 
 sys.path.append('../')
-logger = logging.getLogger('client')
+logger = logging.getLogger('client_src')
 
 
 class ClientMainWindow(QMainWindow):

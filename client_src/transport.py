@@ -4,29 +4,27 @@ import hmac
 import socket
 import sys
 import time
-import logging
-import json
 import threading
 from PyQt5.QtCore import pyqtSignal, QObject
-
-sys.path.append('../')
 from common.utils import *
-from common.variables import *
+from common.constants import *
 from common.errors import ServerError
+sys.path.append('../')
 
 # Логер и объект блокировки для работы с сокетом.
-logger = logging.getLogger('client')
+logger = logging.getLogger('client_src')
 socket_lock = threading.Lock()
 
 
-# Класс - Траннспорт, отвечает за взаимодействие с сервером
 class ClientTransport(threading.Thread, QObject):
+    """Класс - Траннспорт, отвечает за взаимодействие с сервером"""
+
     # Сигналы новое сообщение и потеря соединения
     new_message = pyqtSignal(str)
     connection_lost = pyqtSignal()
 
     def __init__(self, port, ip_address, database, username, password, keys):
-        # Вызываем конструктор предка
+        """Вызываем конструктор предка"""
         threading.Thread.__init__(self)
         QObject.__init__(self)
 
@@ -55,13 +53,14 @@ class ClientTransport(threading.Thread, QObject):
         self.running = True
 
     def make_password_hash(self, password):
+        """Функция генерирует хэш пароля"""
         password_bytes = password.encode('utf-8')
         salt = self.username.lower().encode('utf-8')
         hash_object = hashlib.pbkdf2_hmac('sha512', password_bytes, salt, 10000)
         return binascii.hexlify(hash_object)
 
-    # Функция инициализации соединения с сервером
     def connection_init(self, port, ip):
+        """Функция инициализации соединения с сервером"""
         # Инициализация сокета и сообщение серверу о нашем появлении
         self.transport = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -100,8 +99,8 @@ class ClientTransport(threading.Thread, QObject):
         # Раз всё хорошо, сообщение о установке соединения.
         logger.info('Соединение с сервером успешно установлено.')
 
-    # Функция, генерирующая приветственное сообщение для сервера
     def create_presence(self):
+        """Функция, генерирующая приветственное сообщение для сервера"""
         out = {
             ACTION: PRESENCE,
             TIME: time.time(),
@@ -113,8 +112,10 @@ class ClientTransport(threading.Thread, QObject):
         logger.debug(f'Сформировано {PRESENCE} сообщение для пользователя {self.username}')
         return out
 
-    # Функция обрабатывающяя сообщения от сервера. Ничего не возращает. Генерирует исключение при ошибке.
     def process_server_ans(self, message):
+        """Функция обрабатывающяя сообщения от сервера.
+        Ничего не возращает.
+        Генерирует исключение при ошибке."""
         logger.debug(f'Разбор сообщения от сервера: {message}')
 
         # Если это подтверждение чего-либо
@@ -124,10 +125,8 @@ class ClientTransport(threading.Thread, QObject):
             elif message[RESPONSE] == 400:
                 raise ServerError(f'{message[ERROR]}')
             elif message[RESPONSE] == 511:
-                print(f'511 {self.password_hash} {message[DATA].encode()}')
                 hash_object = hmac.new(self.password_hash, message[DATA].encode('utf-8'), 'MD5')
                 digest = hash_object.digest()
-                print(f'{digest=}')
                 answer = RESPONSE_511
                 answer[DATA] = binascii.b2a_base64(digest).decode('ascii')
                 send_message(self.transport, answer)
@@ -142,8 +141,8 @@ class ClientTransport(threading.Thread, QObject):
             self.database.save_message(message[SENDER], 'in', message[MESSAGE_TEXT])
             self.new_message.emit(message[SENDER])
 
-    # Функция обновляющая контакт - лист с сервера
     def contacts_list_update(self):
+        """Функция обновляющая контакт - лист с сервера"""
         logger.debug(f'Запрос контакт листа для пользователся {self.name}')
         req = {
             ACTION: GET_CONTACTS,
@@ -161,8 +160,8 @@ class ClientTransport(threading.Thread, QObject):
         else:
             logger.error('Не удалось обновить список контактов.')
 
-    # Функция обновления таблицы известных пользователей.
     def user_list_update(self):
+        """Функция обновления таблицы известных пользователей"""
         logger.debug(f'Запрос списка известных пользователей {self.username}')
         req = {
             ACTION: USERS_REQUEST,
@@ -177,8 +176,8 @@ class ClientTransport(threading.Thread, QObject):
         else:
             logger.error('Не удалось обновить список известных пользователей.')
 
-    # Функция сообщающая на сервер о добавлении нового контакта
     def add_contact(self, contact):
+        """Функция сообщающая на сервер о добавлении нового контакта"""
         logger.debug(f'Создание контакта {contact}')
         req = {
             ACTION: ADD_CONTACT,
@@ -190,8 +189,8 @@ class ClientTransport(threading.Thread, QObject):
             send_message(self.transport, req)
             self.process_server_ans(get_message(self.transport))
 
-    # Функция удаления клиента на сервере
     def remove_contact(self, contact):
+        """Функция удаления клиента на сервере"""
         logger.debug(f'Удаление контакта {contact}')
         req = {
             ACTION: REMOVE_CONTACT,
@@ -203,8 +202,8 @@ class ClientTransport(threading.Thread, QObject):
             send_message(self.transport, req)
             self.process_server_ans(get_message(self.transport))
 
-    # Функция закрытия соединения, отправляет сообщение о выходе.
     def transport_shutdown(self):
+        """Функция закрытия соединения, отправляет сообщение о выходе"""
         self.running = False
         message = {
             ACTION: EXIT,
@@ -219,8 +218,8 @@ class ClientTransport(threading.Thread, QObject):
         logger.debug('Транспорт завершает работу.')
         time.sleep(0.5)
 
-    # Функция отправки сообщения на сервер
     def send_message(self, to, message):
+        """Функция отправки сообщения на сервер"""
         message_dict = {
             ACTION: MESSAGE,
             SENDER: self.username,

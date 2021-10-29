@@ -1,11 +1,12 @@
-from PyQt5.QtWidgets import QDialog, QPushButton, QLineEdit, QApplication, QLabel, QMessageBox
+"""client_src registration"""
+from PyQt5.QtWidgets import QDialog, QPushButton, QLineEdit, QLabel, QMessageBox
 from PyQt5.QtCore import Qt
 import hashlib
 import binascii
 
 
 class RegisterUser(QDialog):
-    '''Класс диалог регистрации пользователя на сервере.'''
+    """Класс диалог регистрации пользователя на сервере."""
 
     def __init__(self, database, server):
         super().__init__()
@@ -56,9 +57,9 @@ class RegisterUser(QDialog):
         self.show()
 
     def save_data(self):
-        '''
+        """
         Метод проверки правильности ввода и сохранения в базу нового пользователя.
-        '''
+        """
         if not self.client_name.text():
             self.messages.critical(self, 'Ошибка', 'Не указано имя пользователя.')
             return
@@ -81,6 +82,7 @@ class RegisterUser(QDialog):
             self.close()
 
     def make_password_hash(self, password):
+        """Функция генерации хэша пароля"""
         password_bytes = password.encode('utf-8')
         salt = self.username.lower().encode('utf-8')
         hash_object = hashlib.pbkdf2_hmac('sha512', password_bytes, salt, 10000)

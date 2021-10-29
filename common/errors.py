@@ -1,5 +1,8 @@
-# Исключение - ошибка сервера
+"""errors classes"""
+
+
 class ServerError(Exception):
+    """Исключение - ошибка сервера"""
     def __init__(self, text):
         self.text = text
 
@@ -7,8 +10,8 @@ class ServerError(Exception):
         return self.text
 
 
-# Ошибка - отсутствует обязательное поле в принятом словаре.
 class ReqFieldMissingError(Exception):
+    """Ошибка - отсутствует обязательное поле в принятом словаре."""
     def __init__(self, missing_field):
         self.missing_field = missing_field
 

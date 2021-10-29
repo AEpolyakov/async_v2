@@ -1,13 +1,15 @@
+"""server database"""
+
 from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, DateTime, Text
 from sqlalchemy.orm import mapper, sessionmaker
-from common.variables import *
 import datetime
 
 
-# Класс - серверная база данных:
 class ServerStorage:
-    # Класс - отображение таблицы всех пользователей
+    """Класс - серверная база данных:"""
+
     class AllUsers:
+        """Класс - отображение таблицы всех пользователей"""
         def __init__(self, username, password_hash):
             self.name = username
             self.last_login = datetime.datetime.now()

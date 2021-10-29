@@ -6,7 +6,7 @@ from PyQt5.QtCore import Qt
 
 sys.path.append('../')
 
-logger = logging.getLogger('client')
+logger = logging.getLogger('client_src')
 
 
 class DelContactDialog(QDialog):

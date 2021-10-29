@@ -1,6 +1,7 @@
+"""Серверное приложение асинхронного чата"""
+
 import os
 import argparse
-import threading
 import configparser
 from common.utils import *
 from common.decos import log
@@ -12,9 +13,9 @@ from server_src.auth import RegisterUser
 from server_src.server_core import Server
 
 
-# Парсер аргументов коммандной строки.
 @log
 def arg_parser(default_port, default_address):
+    """Парсер аргументов коммандной строки"""
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', default=default_port, type=int, nargs='?')
     parser.add_argument('-a', default=default_address, nargs='?')
@@ -24,8 +25,8 @@ def arg_parser(default_port, default_address):
     return listen_address, listen_port
 
 
-# Загрузка файла конфигурации
 def config_load():
+    """Загрузка файла конфигурации"""
     config = configparser.ConfigParser()
     dir_path = os.path.dirname(os.path.realpath(__file__))
     config.read(f"{dir_path}/{'server.ini'}")
@@ -75,8 +76,8 @@ def main():
             with server.conflag_lock:
                 server.new_connection = False
 
-    # Функция создающяя окно со статистикой клиентов
     def show_statistics():
+        """Функция создающяя окно со статистикой клиентов"""
         global stat_window
         stat_window = HistoryWindow()
         stat_window.history_table.setModel(create_stat_model(database))
@@ -84,8 +85,8 @@ def main():
         stat_window.history_table.resizeRowsToContents()
         stat_window.show()
 
-    # Функция создающяя окно с настройками сервера.
     def server_config():
+        """Функция создающяя окно с настройками сервера."""
         global config_window
         # Создаём окно и заносим в него текущие параметры
         config_window = ConfigWindow()
@@ -95,8 +96,8 @@ def main():
         config_window.ip.insert(config['SETTINGS']['Listen_Address'])
         config_window.save_btn.clicked.connect(save_server_config)
 
-    # Функция сохранения настроек
     def save_server_config():
+        """Функция сохранения настроек"""
         global config_window
         message = QMessageBox()
         config['SETTINGS']['Database_path'] = config_window.db_path.text()
@@ -117,6 +118,7 @@ def main():
                 message.warning(config_window, 'Ошибка', 'Порт должен быть от 1024 до 65536')
 
     def reg_user():
+        """Функция создаёт окно регистрации пользователя"""
         global reg_user_window
         reg_user_window = RegisterUser(database, server)
         reg_user_window.show()

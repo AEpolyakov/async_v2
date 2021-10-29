@@ -1,5 +1,4 @@
-import logging
-import logs.config_client_log
+"""Клиентское приложение асинхронного чата"""
 import argparse
 import sys
 import os
@@ -7,21 +6,21 @@ import configparser
 from PyQt5.QtWidgets import QApplication
 from Cryptodome.PublicKey import RSA
 
-from common.variables import *
+from common.constants import *
 from common.errors import ServerError
 from common.decos import log
-from client.database import ClientDatabase
-from client.transport import ClientTransport
-from client.main_window import ClientMainWindow
-from client.start_dialog import UserNameDialog
+from client_src.database import ClientDatabase
+from client_src.transport import ClientTransport
+from client_src.main_window import ClientMainWindow
+from client_src.start_dialog import UserNameDialog
 
 # Инициализация клиентского логера
-logger = logging.getLogger('client')
+logger = logging.getLogger('client_src')
 
 
-# Парсер аргументов коммандной строки
 @log
 def arg_parser():
+    """Парсер аргументов коммандной строки"""
     parser = argparse.ArgumentParser()
     parser.add_argument('addr', default=DEFAULT_IP_ADDRESS, nargs='?')
     parser.add_argument('port', default=DEFAULT_PORT, type=int, nargs='?')
@@ -41,6 +40,7 @@ def arg_parser():
 
 
 def config_load(name: str):
+    """загрузчик конфигурации из .ini файла"""
     config = configparser.ConfigParser()
     dir_path = os.path.dirname(os.path.realpath(__file__))
     config_path = f"{f'client_{name}.ini'}"

@@ -1,8 +1,9 @@
+"""configuration for client logger"""
 import sys
 import os
-sys.path.append('../')
 import logging
-from common.variables import LOGGING_LEVEL
+from common.constants import LOGGING_LEVEL
+sys.path.append('../')
 
 # создаём формировщик логов (formatter):
 client_formatter = logging.Formatter('%(asctime)s %(levelname)s %(filename)s %(message)s')
@@ -19,7 +20,7 @@ log_file = logging.FileHandler(path, encoding='utf8')
 log_file.setFormatter(client_formatter)
 
 # создаём регистратор и настраиваем его
-logger = logging.getLogger('client')
+logger = logging.getLogger('client_src')
 logger.addHandler(steam)
 logger.addHandler(log_file)
 logger.setLevel(LOGGING_LEVEL)
@@ -27,6 +28,6 @@ logger.setLevel(LOGGING_LEVEL)
 # отладка
 if __name__ == '__main__':
     logger.critical('Test critical event')
-    logger.error('Test error ivent')
-    logger.debug('Test debug ivent')
-    logger.info('Test info ivent')
+    logger.error('Test error event')
+    logger.debug('Test debug event')
+    logger.info('Test info event')
