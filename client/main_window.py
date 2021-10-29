@@ -1,26 +1,23 @@
-import datetime
-
-from PyQt5.QtWidgets import QMainWindow, qApp, QMessageBox, QApplication, QListView
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor, QFont
-from PyQt5.QtCore import pyqtSlot, QEvent, Qt
+"""module docstring"""
 import sys
-import json
 import logging
 
-sys.path.append('../')
+from datetime import datetime
+from PyQt5.QtWidgets import QMainWindow, qApp, QMessageBox
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor
+from PyQt5.QtCore import pyqtSlot, Qt
 from client.main_window_conv import Ui_MainClientWindow
 from client.add_contact import AddContactDialog
 from client.del_contact import DelContactDialog
-from client.database import ClientDatabase
-from client.transport import ClientTransport
-from client.start_dialog import UserNameDialog
 from common.errors import ServerError
 
+sys.path.append('../')
 logger = logging.getLogger('client')
 
 
-# Класс основного окна
 class ClientMainWindow(QMainWindow):
+    """Класс основного окна"""
+
     def __init__(self, database, transport):
         super().__init__()
         # основные переменные
@@ -76,28 +73,41 @@ class ClientMainWindow(QMainWindow):
         BG_COLOR = ('#c0c0c0', '#10121c')
         LIST_BG_COLOR = ('#c0c0c0', '#1b222b')
         FONT_COLOR = ('#202020', '#c0c0c0')
-        MESSAGE_BG_COLOR = ({'green': (180, 255, 180), 'red': (255, 180, 180), 'grey': (230, 230, 230)},
-                            {'green': (50, 90, 133), 'red': (33, 34, 46), 'grey': (50, 50, 50)})
+        MESSAGE_BG_COLOR = ({'green': (180, 255, 180),
+                             'red': (255, 180, 180),
+                             'grey': (230, 230, 230)
+                             },
+                            {'green': (50, 90, 133),
+                             'red': (33, 34, 46),
+                             'grey': (50, 50, 50)
+                             })
 
         # background
         self.ui.centralwidget.setStyleSheet(f'background-color: {BG_COLOR[self.color_set]};')
 
         # buttons
-        for button in [self.ui.btn_add_contact, self.ui.btn_remove_contact, self.ui.btn_send, self.ui.btn_clear]:
+        for button in [self.ui.btn_add_contact,
+                       self.ui.btn_remove_contact,
+                       self.ui.btn_send,
+                       self.ui.btn_clear]:
             button.setStyleSheet('QPushButton {color: ' + FONT_COLOR[self.color_set] + '}')
 
         # labels
-        for label in [self.ui.label_new_message, self.ui.label_history, self.ui.label_contacts]:
+        for label in [self.ui.label_new_message,
+                      self.ui.label_history,
+                      self.ui.label_contacts]:
             label.setStyleSheet('QLabel {color: ' + FONT_COLOR[self.color_set] + '}')
 
         # checkbox
-        self.ui.theme_switch.setStyleSheet('QCheckBox {color: ' + FONT_COLOR[self.color_set] + '}')
+        self.ui.theme_switch.setStyleSheet('QCheckBox {color: ' +
+                                           FONT_COLOR[self.color_set] + '}')
 
         # message color change
         self.message_bg_colors = MESSAGE_BG_COLOR[self.color_set]
 
-        style = '{color: ' + FONT_COLOR[self.color_set] + ';' + ' background-color: ' + LIST_BG_COLOR[
-            self.color_set] + '}'
+        style = '{color: ' + FONT_COLOR[self.color_set] + ';' + \
+                ' background-color: ' + LIST_BG_COLOR[self.color_set] + '}'
+
         # list view
         for q_list in [self.ui.list_messages, self.ui.list_contacts]:
             q_list.setStyleSheet('QListView' + style)
@@ -273,17 +283,16 @@ class ClientMainWindow(QMainWindow):
             return
         try:
             self.transport.send_message(self.current_chat, message_text)
-            pass
         except ServerError as err:
             self.messages.critical(self, 'Ошибка', err.text)
+        except (ConnectionResetError, ConnectionAbortedError):
+            self.messages.critical(self, 'Ошибка', 'Потеряно соединение с сервером!')
+            self.close()
         except OSError as err:
             if err.errno:
                 self.messages.critical(self, 'Ошибка', 'Потеряно соединение с сервером!')
                 self.close()
             self.messages.critical(self, 'Ошибка', 'Таймаут соединения!')
-        except (ConnectionResetError, ConnectionAbortedError):
-            self.messages.critical(self, 'Ошибка', 'Потеряно соединение с сервером!')
-            self.close()
         else:
             self.database.save_message(self.current_chat, 'out', message_text)
             logger.debug(f'Отправлено сообщение для {self.current_chat}: {message_text}')
@@ -298,18 +307,25 @@ class ClientMainWindow(QMainWindow):
             # Проверим есть ли такой пользователь у нас в контактах:
             if self.database.check_contact(sender):
                 # Если есть, спрашиваем и желании открыть с ним чат и открываем при желании
-                if self.messages.question(self, 'Новое сообщение', \
-                                          f'Получено новое сообщение от {sender}, открыть чат с ним?', QMessageBox.Yes,
-                                          QMessageBox.No) == QMessageBox.Yes:
+                answer = self.messages.question(
+                    self, 'Новое сообщение',
+                    f'Получено новое сообщение от {sender}, открыть чат с ним?',
+                    QMessageBox.Yes,
+                    QMessageBox.No
+                )
+                if answer == QMessageBox.Yes:
                     self.current_chat = sender
                     self.set_active_user()
             else:
                 print('NO')
                 # Раз нету,спрашиваем хотим ли добавить юзера в контакты.
-                if self.messages.question(self, 'Новое сообщение', \
-                                          f'Получено новое сообщение от {sender}.\n Данного пользователя нет в вашем контакт-листе.\n Добавить в контакты и открыть чат с ним?',
+                if self.messages.question(self, 'Новое сообщение',
+                                          f'Получено новое сообщение от {sender}.\n '
+                                          f'Данного пользователя нет в вашем контакт-листе.\n '
+                                          f'Добавить в контакты и открыть чат с ним?',
                                           QMessageBox.Yes,
-                                          QMessageBox.No) == QMessageBox.Yes:
+                                          QMessageBox.No
+                                          ) == QMessageBox.Yes:
                     self.add_contact(sender)
                     self.current_chat = sender
                     self.set_active_user()
