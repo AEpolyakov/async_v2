@@ -5,3 +5,4 @@
 *.db3
 client*.ini
 *.key
+/doc
