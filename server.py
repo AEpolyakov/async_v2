@@ -1,27 +1,20 @@
 import binascii
 import hmac
 import socket
-import sys
 import os
 import argparse
-import json
-import logging
 import select
-import time
 import threading
 import configparser
-import logs.config_server_log
-from common.variables import *
 from common.utils import *
 from common.decos import log
-from descryptors import Port
-from metaclasses import ServerMaker
-from server_database import ServerStorage
+from common.descryptors import Port
+from common.metaclasses import ServerMaker
+from server_src.server_database import ServerStorage
 from PyQt5.QtWidgets import QApplication, QMessageBox
 from PyQt5.QtCore import QTimer
-from server_gui import MainWindow, gui_create_model, HistoryWindow, create_stat_model, ConfigWindow
+from server_src.server_gui import MainWindow, gui_create_model, HistoryWindow, create_stat_model, ConfigWindow
 from server_src.auth import RegisterUser
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
 
 # Инициализация логирования сервера.
 logger = logging.getLogger('server')
